@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pi Habit Tracker</title>
+
+    <!-- Pi Network SDK -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+    <!-- Font & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #7c3aed; /* Pi Network Purple style */
+            --primary-light: #ddd6fe;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: 20px;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Top Header & User Welcome */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-top: 8px;
+        }
+
+        .user-info h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .user-info p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .pi-badge {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Add Habit Action Bar */
+        .action-bar {
+            margin-bottom: 20px;
+        }
+
+        .btn-add {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-add:active {
+            transform: scale(0.98);
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+
+        /* Habit List */
+        .habit-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .habit-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .habit-card.completed {
+            background-color: var(--success-light);
+            border-color: #a7f3d0;
+        }
+
+        .habit-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .habit-category {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+
+        .cat-health { background: #fee2e2; color: #ef4444; }
+        .cat-mind { background: #e0e7ff; color: #6366f1; }
+        .cat-productivity { background: #fef3c7; color: #d97706; }
+
+        .habit-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .habit-streak {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Check Button */
+        .btn-check {
+            background: #f1f5f9;
+            border: 2px solid var(--border);
+            color: var(--text-muted);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .habit-card.completed .btn-check {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px dashed var(--border);
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-cancel {
+            flex: 1;
+            background: #f1f5f9;
+            color: var(--text-main);
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-save {
+            flex: 1;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Top Navigation / User Header -->
+        <header class="header">
+            <div class="user-info">
+                <h1 id="user-display">Welcome!</h1>
+                <p>Track your habits & build consistency</p>
+            </div>
+            <div class="pi-badge">
+                ⚡ Pi Network
+            </div>
+        </header>
+
+        <!-- Primary Action -->
+        <div class="action-bar">
+            <button class="btn-add" id="open-modal-btn">
+                <span>+</span> Add New Habit
+            </button>
+        </div>
+
+        <!-- Dashboard Habit List -->
+        <section>
+            <h2 class="section-title">Today's Habits</h2>
+            <div id="habit-list" class="habit-list">
+                <!-- Habit Cards rendered via JS -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Add Habit Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">Create New Habit</div>
+            
+            <div class="form-group">
+                <label for="habit-name">Habit Name</label>
+                <input type="text" id="habit-name" placeholder="e.g., Morning Meditation">
+            </div>
+
+            <div class="form-group">
+                <label for="habit-category">Category</label>
+                <select id="habit-category">
+                    <option value="Health">🏋️ Health</option>
+                    <option value="Mind">🧠 Mind</option>
+                    <option value="Productivity">⚡ Productivity</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" id="close-modal-btn">Cancel</button>
+                <button class="btn-save" id="save-habit-btn">Save Habit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Structures (Matching SQLite/Database Schema)
+        // Habits: [{ Habit_ID, User_ID, Habit_Name, Category, Created_Date, Current_Streak }]
+        // Logs: [{ Log_ID, Habit_ID, Completion_Date, Status }]
+
+        let habits = JSON.parse(localStorage.getItem('pi_habits')) || [
+            { Habit_ID: '1', User_ID: 'pi_pioneer', Habit_Name: 'Read 15 mins', Category: 'Mind', Created_Date: new Date().toISOString(), Current_Streak: 3 },
+            { Habit_ID: '2', User_ID: 'pi_pioneer', Habit_Name: 'Workout', Category: 'Health', Created_Date: new Date().toISOString(), Current_Streak: 5 }
+        ];
+
+        let logs = JSON.parse(localStorage.getItem('pi_logs')) || [];
+        let username = "Pioneer";
+
+        // Initialize Pi SDK
+        function initPiNetwork() {
+            if (window.Pi) {
+                try {
+                    const Pi = window.Pi;
+                    Pi.init({ version: "2.0", sandbox: true });
+
+                    const scopes = ['username'];
+                    function onIncompletePaymentFound(payment) { console.log('Payment:', payment); };
+
+                    Pi.authenticate(scopes, onIncompletePaymentFound).then(function(auth) {
+                        username = auth.user.username;
+                        document.getElementById('user-display').textContent = `Welcome, @${username}!`;
+                    }).catch(function(error) {
+                        console.error('Pi Auth failed:', error);
+                        document.getElementById('user-display').textContent = `Welcome, Pioneer!`;
+                    });
+                } catch(e) {
+                    document.getElementById('user-display').textContent = `Welcome, Pioneer!`;
+                }
+            } else {
+                document.getElementById('user-display').textContent = `Welcome, Pioneer!`;
+            }
+        }
+
+        // Helper: Get today's date formatted YYYY-MM-DD
+        function getTodayString() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // Render Dashboard
+        function renderDashboard() {
+            const listEl = document.getElementById('habit-list');
+            listEl.innerHTML = '';
+
+            if (habits.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <p>No habits added yet.</p>
+                        <p style="font-size: 0.85rem; margin-top: 4px;">Click "+ Add New Habit" to begin!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const today = getTodayString();
+
+            habits.forEach(habit => {
+                // Check if completed today in Logs
+                const isCompletedToday = logs.some(log => log.Habit_ID === habit.Habit_ID && log.Completion_Date === today && log.Status === true);
+
+                let catClass = 'cat-productivity';
+                let catIcon = '⚡';
+                if (habit.Category === 'Health') { catClass = 'cat-health'; catIcon = '🏋️'; }
+                if (habit.Category === 'Mind') { catClass = 'cat-mind'; catIcon = '🧠'; }
+
+                const card = document.createElement('div');
+                card.className = `habit-card ${isCompletedToday ? 'completed' : ''}`;
+                card.innerHTML = `
+                    <div class="habit-details">
+                        <span class="habit-category ${catClass}">${catIcon} ${habit.Category}</span>
+                        <div class="habit-name">${escapeHtml(habit.Habit_Name)}</div>
+                        <div class="habit-streak">🔥 ${habit.Current_Streak} day streak</div>
+                    </div>
+                    <button class="btn-check" onclick="toggleHabitCheck('${habit.Habit_ID}')">
+                        ${isCompletedToday ? '✓' : ''}
+                    </button>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        // App Logic: Check Off Habit
+        function toggleHabitCheck(habitId) {
+            const today = getTodayString();
+            const habitIndex = habits.findIndex(h => h.Habit_ID === habitId);
+            if (habitIndex === -1) return;
+
+            const existingLogIndex = logs.findIndex(log => log.Habit_ID === habitId && log.Completion_Date === today);
+
+            if (existingLogIndex === -1) {
+                // Mark Completed
+                logs.push({
+                    Log_ID: Date.now().toString(),
+                    Habit_ID: habitId,
+                    Completion_Date: today,
+                    Status: true
+                });
+                habits[habitIndex].Current_Streak += 1;
+            } else {
+                // Uncheck / Undo
+                logs.splice(existingLogIndex, 1);
+                habits[habitIndex].Current_Streak = Math.max(0, habits[habitIndex].Current_Streak - 1);
+            }
+
+            saveData();
+            renderDashboard();
+        }
+
+        // Add Habit Form Logic
+        function saveHabit() {
+            const nameInput = document.getElementById('habit-name');
+            const categoryInput = document.getElementById('habit-category');
+
+            if (!nameInput.value.trim()) {
+                alert('Please enter a habit name.');
+                return;
+            }
+
+            const newHabit = {
+                Habit_ID: Date.now().toString(),
+                User_ID: username,
+                Habit_Name: nameInput.value.trim(),
+                Category: categoryInput.value,
+                Created_Date: new Date().toISOString(),
+                Current_Streak: 0
+            };
+
+            habits.push(newHabit);
+            saveData();
+            renderDashboard();
+
+            nameInput.value = '';
+            closeModal();
+        }
+
+        // Local Storage Helper
+        function saveData() {
+            localStorage.setItem('pi_habits', JSON.stringify(habits));
+            localStorage.setItem('pi_logs', JSON.stringify(logs));
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+            });
+        }
+
+        // Modal Controls
+        const modal = document.getElementById('modal');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const saveHabitBtn = document.getElementById('save-habit-btn');
+
+        function openModal() { modal.classList.add('active'); }
+        function closeModal() { modal.classList.remove('active'); }
+
+        openModalBtn.addEventListener('click', openModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        saveHabitBtn.addEventListener('click', saveHabit);
+
+        // App Init
+        initPiNetwork();
+        renderDashboard();
+    </script>
+</body>
+</html>
